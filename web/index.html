@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC Degradation Laboratory | Network Diagnostics Workbench</title>
+    <style>
+        :root {
+            /* Light Theme (Porcelain Architectural Standard) */
+            --bg-main: #F8FAFC;
+            --bg-card: #FFFFFF;
+            --bg-subtle: #F1F5F9;
+            --bg-hover: #E2E8F0;
+            --border-color: #E2E8F0;
+            --border-subtle: #F1F5F9;
+            --border-strong: #0F172A;
+            --text-main: #0B0F19;
+            --text-muted: #64748B;
+            --text-subtle: #94A3B8;
+            --accent-bg: #0F172A;
+            --accent-hover: #1E293B;
+            --accent-text: #FFFFFF;
+            --video-bg: #0B0F19;
+            --log-bg: #F8FAFC;
+            --log-text: #1E293B;
+            --radius: 8px;
+            --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            --ease-kinetic: cubic-bezier(0.16, 1, 0.3, 1);
+            --transition: 140ms var(--ease-kinetic);
+        }
+
+        [data-theme="dark"] {
+            /* Dark Theme (Obsidian Void Standard) */
+            --bg-main: #060709;
+            --bg-card: #0B0D11;
+            --bg-subtle: #11141B;
+            --bg-hover: #1A1F2B;
+            --border-color: #1E293B;
+            --border-subtle: #11141B;
+            --border-strong: #F1F5F9;
+            --text-main: #F1F5F9;
+            --text-muted: #94A3B8;
+            --text-subtle: #64748B;
+            --accent-bg: #F1F5F9;
+            --accent-hover: #E2E8F0;
+            --accent-text: #060709;
+            --video-bg: #030407;
+            --log-bg: #080A0E;
+            --log-text: #E2E8F0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            height: 100vh;
+            max-height: 100vh;
+            overflow-y: hidden;
+            overflow-x: hidden;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            font-size: 13px;
+            line-height: 1.4;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: center;
+            align-items: stretch;
+            transition: background-color var(--transition), color var(--transition);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .workspace {
+            width: 100%;
+            max-width: 1080px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow: hidden;
+        }
+
+        /* Minimal Monochromatic Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+
+        .title-group h1 {
+            font-size: 17px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: var(--text-main);
+            line-height: 1.2;
+        }
+
+        .title-group p {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 1px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Strictly Monochromatic Status Tag */
+        .status-tag {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            padding: 4px 12px;
+            border-radius: var(--radius);
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            transition: all var(--transition);
+        }
+
+        .status-tag.active {
+            color: var(--text-main);
+            border-color: var(--border-strong);
+            background: var(--bg-subtle);
+        }
+
+        /* Theme Toggle Button (Circular 32px with 360° Rotational Easing) */
+        .theme-toggle {
+            width: 32px;
+            height: 32px;
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            background: var(--bg-card);
+            color: var(--text-muted);
+            transition: background-color var(--transition), border-color var(--transition), color var(--transition), transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            outline: none;
+            padding: 0;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+            flex-shrink: 0;
+        }
+
+        .theme-toggle:hover {
+            color: var(--text-main);
+            background: var(--bg-hover);
+            border-color: var(--text-muted);
+        }
+
+        .theme-toggle:active {
+            transform: scale(0.94);
+        }
+
+        .theme-icon-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .theme-icon {
+            width: 14px;
+            height: 14px;
+            stroke-width: 2;
+            stroke: currentColor;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        /* Controls Toolbar */
+        .toolbar {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 10px 16px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            justify-content: space-between;
+            transition: background-color var(--transition), border-color var(--transition);
+            flex-shrink: 0;
+        }
+
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .field {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .field label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        input[type="text"] {
+            background: var(--bg-subtle);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 5px 10px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--text-main);
+            outline: none;
+            transition: border-color var(--transition), background-color var(--transition), box-shadow var(--transition);
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--border-strong);
+            background: var(--bg-card);
+            box-shadow: 0 0 0 1px var(--border-strong);
+        }
+
+        /* Architectural Monochromatic Combobox / Select Styling */
+        .select-wrapper {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        select {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background: var(--bg-subtle);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 5px 28px 5px 10px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--text-main);
+            outline: none;
+            cursor: pointer;
+            transition: border-color var(--transition), background-color var(--transition), box-shadow var(--transition);
+        }
+
+        select:focus {
+            border-color: var(--border-strong);
+            background: var(--bg-card);
+            box-shadow: 0 0 0 1px var(--border-strong);
+        }
+
+        select:hover {
+            border-color: var(--text-muted);
+            background: var(--bg-hover);
+        }
+
+        .select-arrow {
+            position: absolute;
+            right: 9px;
+            pointer-events: none;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .select-arrow svg {
+            width: 12px;
+            height: 12px;
+            stroke-width: 2;
+            stroke: currentColor;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        select option {
+            background: var(--bg-card);
+            color: var(--text-main);
+            font-family: var(--font-mono);
+            font-size: 12px;
+            padding: 8px 10px;
+        }
+
+        /* Buttons with Tactile Active Micro-Press */
+        .btn-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        button.action-btn {
+            padding: 5px 14px;
+            font-size: 12px;
+            font-weight: 500;
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: all var(--transition);
+            outline: none;
+            user-select: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        button.action-btn:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+
+        .btn-solid {
+            background: var(--accent-bg);
+            color: var(--accent-text);
+            border: 1px solid var(--accent-bg);
+        }
+
+        .btn-solid:hover:not(:disabled) {
+            background: var(--accent-hover);
+            border-color: var(--accent-hover);
+        }
+
+        .btn-outline {
+            background: var(--bg-card);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-outline:hover:not(:disabled) {
+            background: var(--bg-hover);
+            border-color: var(--text-muted);
+        }
+
+        button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        /* Monochromatic Metric Grid */
+        .metrics-strip {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .metric-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 10px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            transition: background-color var(--transition), border-color var(--transition);
+        }
+
+        .metric-label {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+        }
+
+        .metric-val {
+            font-family: var(--font-mono);
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-main);
+            letter-spacing: -0.03em;
+            line-height: 1.1;
+        }
+
+        .metric-unit {
+            font-size: 11px;
+            font-weight: normal;
+            color: var(--text-muted);
+        }
+
+        .metric-sub {
+            font-size: 11px;
+            color: var(--text-subtle);
+        }
+
+        /* Monochromatic Symmetrical Video Cards */
+        .video-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            flex: 1 1 200px;
+            min-height: 160px;
+            max-height: 250px;
+        }
+
+        .video-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            transition: background-color var(--transition), border-color var(--transition);
+        }
+
+        .video-header {
+            padding: 6px 12px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-subtle);
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 0.04em;
+            display: flex;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .video-frame {
+            background: var(--video-bg);
+            flex: 1;
+            width: 100%;
+            min-height: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #localVideo {
+            transform: scaleX(-1);
+        }
+
+        .video-idle {
+            position: absolute;
+            color: var(--text-subtle);
+            font-family: var(--font-mono);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Monochromatic Diagnostics Feed */
+        .log-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 140px;
+            min-height: 120px;
+            transition: background-color var(--transition), border-color var(--transition);
+        }
+
+        .log-header {
+            padding: 8px 14px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .log-title {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+        }
+
+        .log-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .log-count {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .log-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 11px;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: var(--radius);
+            transition: color var(--transition);
+        }
+
+        .log-btn:hover {
+            color: var(--text-main);
+        }
+
+        .log-body {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding: 8px 14px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            background: var(--log-bg);
+            color: var(--log-text);
+            line-height: 1.5;
+            transition: background-color var(--transition), color var(--transition);
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-color) transparent;
+        }
+
+        .log-body::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .log-body::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 2px;
+        }
+
+        .log-row {
+            display: flex;
+            gap: 12px;
+            padding: 3px 0;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .log-t {
+            color: var(--text-subtle);
+            width: 65px;
+            flex-shrink: 0;
+        }
+
+        .log-regime {
+            color: var(--text-main);
+            font-weight: 600;
+            width: 130px;
+            flex-shrink: 0;
+        }
+
+        .log-d {
+            color: var(--text-muted);
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="workspace">
+        <!-- Header with 360° Rotational Theme Toggle & Monochromatic Status Tag -->
+        <header>
+            <div class="title-group">
+                <h1>WebRTC Degradation Laboratory</h1>
+                <p>W3C getStats() Diagnostics Harvester & Root-Cause Classifier</p>
+            </div>
+            <div class="header-actions">
+                <span id="statusTag" class="status-tag">IDLE</span>
+                <button id="themeToggleBtn" class="theme-toggle" title="Toggle Light/Dark Theme" aria-label="Toggle Theme">
+                    <div id="themeIconContainer" class="theme-icon-container">
+                        <!-- Sun Icon (Active in Dark Mode) -->
+                        <svg id="sunIcon" class="theme-icon" style="display: none;" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="5"/>
+                            <line x1="12" y1="1" x2="12" y2="3"/>
+                            <line x1="12" y1="21" x2="12" y2="23"/>
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                            <line x1="1" y1="12" x2="3" y2="12"/>
+                            <line x1="21" y1="12" x2="23" y2="12"/>
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                        </svg>
+                        <!-- Moon Icon (Active in Light Mode) -->
+                        <svg id="moonIcon" class="theme-icon" viewBox="0 0 24 24">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                        </svg>
+                    </div>
+                </button>
+            </div>
+        </header>
+
+        <!-- Controls Toolbar -->
+        <div class="toolbar">
+            <div class="toolbar-group">
+                <div class="field">
+                    <label for="runId">Run ID</label>
+                    <input type="text" id="runId" value="run_001" style="width: 100px;">
+                </div>
+                <div class="field">
+                    <label for="labelSelect">Regime</label>
+                    <div class="select-wrapper">
+                        <select id="labelSelect">
+                            <option value="normal">normal</option>
+                            <option value="latency_high">latency_high</option>
+                            <option value="packet_loss_frames_dropped">packet_loss_frames_dropped</option>
+                            <option value="jitter_instability">jitter_instability</option>
+                        </select>
+                        <div class="select-arrow" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="btn-row">
+                <button id="startCallBtn" class="action-btn btn-solid">Start Call</button>
+                <button id="recordBtn" class="action-btn btn-outline" disabled>Record (1 Hz)</button>
+                <button id="stopBtn" class="action-btn btn-outline" disabled>Stop & Export</button>
+            </div>
+        </div>
+
+        <!-- Monochromatic Metric Strip -->
+        <div class="metrics-strip">
+            <div class="metric-box">
+                <span class="metric-label">Round Trip Time</span>
+                <span class="metric-val" id="rttDisplay">0.0 <span class="metric-unit">ms</span></span>
+                <span class="metric-sub" id="rttSub">current latency</span>
+            </div>
+            <div class="metric-box">
+                <span class="metric-label">Jitter</span>
+                <span class="metric-val" id="jitterDisplay">0.0 <span class="metric-unit">ms</span></span>
+                <span class="metric-sub">arrival variance</span>
+            </div>
+            <div class="metric-box">
+                <span class="metric-label">Loss Rate</span>
+                <span class="metric-val" id="lossDisplay">0.0 <span class="metric-unit">%</span></span>
+                <span class="metric-sub" id="lossSub">differential rate</span>
+            </div>
+            <div class="metric-box">
+                <span class="metric-label">Frames Dropped</span>
+                <span class="metric-val" id="framesDisplay">0</span>
+                <span class="metric-sub" id="sampleSub">0 samples logged</span>
+            </div>
+        </div>
+
+        <!-- Symmetrical Video Viewports -->
+        <div class="video-grid">
+            <div class="video-box">
+                <div class="video-header">
+                    <span>Local Ingress (Sender)</span>
+                    <span style="color: var(--text-subtle);">outbound-rtp</span>
+                </div>
+                <div class="video-frame">
+                    <video id="localVideo" autoplay muted playsinline></video>
+                    <span id="localIdle" class="video-idle">Camera Inactive</span>
+                </div>
+            </div>
+
+            <div class="video-box">
+                <div class="video-header">
+                    <span>Remote Egress (Receiver)</span>
+                    <span style="color: var(--text-subtle);">inbound-rtp</span>
+                </div>
+                <div class="video-frame">
+                    <video id="remoteVideo" autoplay playsinline></video>
+                    <span id="remoteIdle" class="video-idle">Peer Inactive</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Clean Diagnostics Log Stream -->
+        <div class="log-section">
+            <div class="log-header">
+                <span class="log-title">Diagnostics Record Stream</span>
+                <div class="log-actions">
+                    <span class="log-count" id="logCount">0 records</span>
+                    <button id="clearBtn" class="log-btn">Clear</button>
+                </div>
+            </div>
+            <div class="log-body" id="logBody">
+                <div class="log-row" style="color: var(--text-subtle);">
+                    <span>Initialize a call and click Record to harvest getStats() diagnostics.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Monochromatic Theme Engine (Default: Light Mode) ---
+        const htmlEl = document.documentElement;
+        const themeToggleBtn = document.getElementById('themeToggleBtn');
+        const themeIconContainer = document.getElementById('themeIconContainer');
+        const sunIcon = document.getElementById('sunIcon');
+        const moonIcon = document.getElementById('moonIcon');
+        let currentRotation = 0;
+
+        function setTheme(theme) {
+            htmlEl.setAttribute('data-theme', theme);
+            localStorage.setItem('webrtc_theme', theme);
+            if (theme === 'dark') {
+                sunIcon.style.display = 'block';
+                moonIcon.style.display = 'none';
+            } else {
+                sunIcon.style.display = 'none';
+                moonIcon.style.display = 'block';
+            }
+        }
+
+        // Default strictly to Light Mode unless explicitly set by user
+        const savedTheme = localStorage.getItem('webrtc_theme') || 'light';
+        setTheme(savedTheme);
+
+        themeToggleBtn.addEventListener('click', () => {
+            const current = htmlEl.getAttribute('data-theme') || 'light';
+            const nextTheme = current === 'dark' ? 'light' : 'dark';
+            currentRotation += 360;
+            themeIconContainer.style.transform = `rotate(${currentRotation}deg)`;
+            setTheme(nextTheme);
+        });
+
+        // --- WebRTC Telemetry Logic ---
+        let localStream = null;
+        let pc1 = null;
+        let pc2 = null;
+        let buffer = [];
+        let timer = null;
+        let prevStats = null;
+
+        const statusTag = document.getElementById('statusTag');
+        const startCallBtn = document.getElementById('startCallBtn');
+        const recordBtn = document.getElementById('recordBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const runId = document.getElementById('runId');
+        const labelSelect = document.getElementById('labelSelect');
+
+        const rttDisplay = document.getElementById('rttDisplay');
+        const jitterDisplay = document.getElementById('jitterDisplay');
+        const lossDisplay = document.getElementById('lossDisplay');
+        const lossSub = document.getElementById('lossSub');
+        const framesDisplay = document.getElementById('framesDisplay');
+        const sampleSub = document.getElementById('sampleSub');
+
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const localIdle = document.getElementById('localIdle');
+        const remoteIdle = document.getElementById('remoteIdle');
+        const logBody = document.getElementById('logBody');
+        const logCount = document.getElementById('logCount');
+
+        startCallBtn.onclick = startCall;
+        recordBtn.onclick = startRecording;
+        stopBtn.onclick = stopRecording;
+        clearBtn.onclick = clearLogs;
+
+        async function startCall() {
+            try {
+                statusTag.textContent = "NEGOTIATING";
+                statusTag.classList.remove('active');
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480, frameRate: 30 },
+                    audio: true
+                });
+
+                localVideo.srcObject = localStream;
+                localIdle.style.display = 'none';
+
+                pc1 = new RTCPeerConnection();
+                pc2 = new RTCPeerConnection();
+
+                pc1.onicecandidate = e => e.candidate && pc2.addIceCandidate(e.candidate);
+                pc2.onicecandidate = e => e.candidate && pc1.addIceCandidate(e.candidate);
+
+                pc2.ontrack = e => {
+                    remoteVideo.srcObject = e.streams[0];
+                    remoteIdle.style.display = 'none';
+                };
+
+                localStream.getTracks().forEach(t => pc1.addTrack(t, localStream));
+
+                const offer = await pc1.createOffer();
+                await pc1.setLocalDescription(offer);
+                await pc2.setRemoteDescription(offer);
+
+                const answer = await pc2.createAnswer();
+                await pc2.setLocalDescription(answer);
+                await pc1.setRemoteDescription(answer);
+
+                statusTag.classList.add('active');
+                statusTag.textContent = "CONNECTED";
+                startCallBtn.disabled = true;
+                recordBtn.disabled = false;
+            } catch (err) {
+                statusTag.textContent = "DISCONNECTED";
+                statusTag.classList.remove('active');
+                console.error(err);
+            }
+        }
+
+        async function poll() {
+            if (!pc1) return;
+            const stats = await pc1.getStats();
+            let row = {
+                timestamp: new Date().toISOString(),
+                run_id: runId.value.trim() || 'run_001',
+                label: labelSelect.value,
+                packets_received: 0,
+                packets_lost: 0,
+                jitter: 0,
+                frames_dropped: 0,
+                frames_received: 0,
+                bytes_received: 0,
+                packets_sent: 0,
+                bytes_sent: 0,
+                frames_sent: 0,
+                rtt: 0,
+                rtt_ms: 0,
+                jitter_ms: 0
+            };
+
+            stats.forEach(s => {
+                if (s.type === 'inbound-rtp' && s.kind === 'video') {
+                    row.packets_received = s.packetsReceived || 0;
+                    row.packets_lost = s.packetsLost || 0;
+                    row.jitter = s.jitter || 0;
+                    row.frames_dropped = s.framesDropped || 0;
+                    row.frames_received = s.framesReceived || 0;
+                    row.bytes_received = s.bytesReceived || 0;
+                }
+                if (s.type === 'outbound-rtp' && s.kind === 'video') {
+                    row.packets_sent = s.packetsSent || 0;
+                    row.bytes_sent = s.bytesSent || 0;
+                    row.frames_sent = s.framesSent || 0;
+                }
+                if (s.type === 'candidate-pair' && s.state === 'succeeded') {
+                    row.rtt = s.currentRoundTripTime || 0;
+                }
+            });
+
+            row.rtt_ms = row.rtt * 1000;
+            row.jitter_ms = row.jitter * 1000;
+
+            let lossRate = 0;
+            if (prevStats) {
+                const dLost = Math.max(0, row.packets_lost - prevStats.packets_lost);
+                const dRecv = Math.max(0, row.packets_received - prevStats.packets_received);
+                const total = dLost + dRecv;
+                lossRate = total > 0 ? (dLost / total) * 100 : 0;
+            }
+            prevStats = { ...row };
+
+            buffer.push(row);
+
+            // Update UI
+            rttDisplay.innerHTML = `${row.rtt_ms.toFixed(1)} <span class="metric-unit">ms</span>`;
+            jitterDisplay.innerHTML = `${row.jitter_ms.toFixed(1)} <span class="metric-unit">ms</span>`;
+            lossDisplay.innerHTML = `${lossRate.toFixed(1)} <span class="metric-unit">%</span>`;
+            framesDisplay.textContent = row.frames_dropped;
+            sampleSub.textContent = `${buffer.length} samples logged`;
+
+            // Append unbracketed log row
+            const logEl = document.createElement('div');
+            logEl.className = 'log-row';
+            const tStr = new Date().toTimeString().split(' ')[0];
+            logEl.innerHTML = `
+                <span class="log-t">${tStr}</span>
+                <span class="log-regime">${row.label}</span>
+                <span class="log-d">RTT: ${row.rtt_ms.toFixed(1)}ms  Jitter: ${row.jitter_ms.toFixed(2)}ms  Loss: ${lossRate.toFixed(1)}%  Drop: ${row.frames_dropped}</span>
+            `;
+            if (buffer.length === 1) logBody.innerHTML = '';
+            logBody.insertBefore(logEl, logBody.firstChild);
+            logCount.textContent = `${buffer.length} records`;
+        }
+
+        function startRecording() {
+            if (!pc1) return;
+            statusTag.textContent = "RECORDING (1 HZ)";
+            statusTag.classList.add('active');
+            recordBtn.disabled = true;
+            stopBtn.disabled = false;
+            poll();
+            timer = setInterval(poll, 1000);
+        }
+
+        function stopRecording() {
+            clearInterval(timer);
+            statusTag.textContent = "CONNECTED";
+            recordBtn.disabled = false;
+            stopBtn.disabled = true;
+            exportCSV();
+        }
+
+        async function exportCSV() {
+            if (buffer.length === 0) return;
+            const headers = Object.keys(buffer[0]);
+            let csv = headers.join(',') + '\n';
+            buffer.forEach(r => {
+                csv += headers.map(h => r[h] !== undefined ? r[h] : '').join(',') + '\n';
+            });
+
+            try {
+                const res = await fetch('http://127.0.0.1:8002/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        run_id: runId.value.trim() || 'run_001',
+                        label: labelSelect.value,
+                        csv: csv,
+                        rows: buffer.length
+                    })
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    statusTag.textContent = "COMMITTED TO DATASET";
+                    return;
+                }
+            } catch (e) {
+                // Ingestion daemon offline; trigger fallback client download
+            }
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${runId.value.trim()}_${labelSelect.value}_${Date.now()}.csv`;
+            a.click();
+            statusTag.textContent = "LOCAL CSV DOWNLOADED (DAEMON OFFLINE)";
+        }
+
+        function clearLogs() {
+            buffer = [];
+            prevStats = null;
+            rttDisplay.innerHTML = `0.0 <span class="metric-unit">ms</span>`;
+            jitterDisplay.innerHTML = `0.0 <span class="metric-unit">ms</span>`;
+            lossDisplay.innerHTML = `0.0 <span class="metric-unit">%</span>`;
+            framesDisplay.textContent = '0';
+            sampleSub.textContent = '0 samples logged';
+            logBody.innerHTML = '<div class="log-row" style="color: var(--text-subtle);"><span>Buffer cleared.</span></div>';
+            logCount.textContent = '0 records';
+        }
+    </script>
+</body>
+</html>
