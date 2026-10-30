@@ -11,6 +11,70 @@ Instead of treating quality drops as a subjective scalar (MOS) or generic binary
 
 ---
 
+## 📐 System Architecture & Workflow
+
+```mermaid
+flowchart TD
+    classDef darkBox fill:#111827,stroke:#111827,color:#FFFFFF,stroke-width:1.5px;
+    classDef whiteBox fill:#FFFFFF,stroke:#374151,color:#111827,stroke-width:1.5px;
+    classDef grayBox fill:#F3F4F6,stroke:#4B5563,color:#111827,stroke-width:1.5px;
+    classDef subStyle fill:#F9FAFB,stroke:#D1D5DB,stroke-width:1px,color:#111827;
+
+    subgraph NetEm ["1. Network Emulation Layer (Linux tc/netem)"]
+        A1["Traffic Control (tc qdisc)"] --> A2["Impairment Injection Engine"]
+        A2 --> A3["Loss (2-15%) | Delay (50-300ms) | Jitter (10-80ms)"]
+    end
+    style NetEm class:subStyle
+
+    subgraph ClientHarvester ["2. Edge Telemetry Harvesting Layer"]
+        B1["Headless WebRTC Client (Chromium)"] --> B2["W3C RTCPeerConnection.getStats()"]
+        B2 --> B3["Raw 1 Hz Cumulative Counters\n(packetsLost, framesDropped, bytesReceived, rtt, jitter)"]
+    end
+    style ClientHarvester class:subStyle
+
+    subgraph FeaturePipeline ["3. Stationary Differential Transformation Engine"]
+        C1["First-Order Differencing: ΔL_t, ΔD_t, ΔB_t"]
+        C2["Multi-Scale Rolling Moments: Window W=3 & W=5 (Mean, StdDev, Min, Max)"]
+        C3["Cross-Metric Ratios: (Loss / BytesRecv), (Jitter / RTT)"]
+        C1 --> C4["59-Dimensional Stationary Feature Vector (X_t)"]
+        C2 --> C4
+        C3 --> C4
+    end
+    style FeaturePipeline class:subStyle
+
+    subgraph EdgeInference ["4. Sub-Millisecond Edge Classifier"]
+        D1["Trained ExtraTrees Model (ONNX WASM)"]
+        D2["Real-Time Inference: 0.42 ms | 380 KB RAM"]
+        D1 --> D2
+    end
+    style EdgeInference class:subStyle
+
+    subgraph ClosedLoop ["5. Closed-Loop Protocol Remediation Layer"]
+        E1{"Root Cause Diagnosed"}
+        E2["Packet Loss: Increase FEC Redundancy / Trigger NACK Burst"]
+        E3["High Latency: Temporal Downscaling & Keyframe Interval Tuning"]
+        E4["Jitter / Variance: Playout Buffer Delay Expansion"]
+        E5["Normal: Maintain Steady-State Bitrate & Profile"]
+        
+        E1 -->|Loss| E2
+        E1 -->|Delay| E3
+        E1 -->|Jitter| E4
+        E1 -->|Normal| E5
+    end
+    style ClosedLoop class:subStyle
+
+    A3 --> B1
+    B3 --> C1
+    C4 --> D1
+    D2 --> E1
+
+    class A1,B1,C4,D1,E1 darkBox;
+    class A2,B2,C1,C2,C3,D2 whiteBox;
+    class A3,B3,E2,E3,E4,E5 grayBox;
+```
+
+---
+
 ## 🎯 Key Research Contributions
 
 - **Stationary Differential Transforms**: Converts raw monotonic counters (`packetsLost`, `framesDropped`, `bytesReceived`) into 1 Hz first-order differential rates and multi-scale rolling statistics ($W=3, 5$), producing a 59-dimensional stationary feature space.
