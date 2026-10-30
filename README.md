@@ -18,19 +18,18 @@ flowchart TD
     classDef darkBox fill:#111827,stroke:#111827,color:#FFFFFF,stroke-width:1.5px;
     classDef whiteBox fill:#FFFFFF,stroke:#374151,color:#111827,stroke-width:1.5px;
     classDef grayBox fill:#F3F4F6,stroke:#4B5563,color:#111827,stroke-width:1.5px;
-    classDef subStyle fill:#F9FAFB,stroke:#D1D5DB,stroke-width:1px,color:#111827;
 
     subgraph NetEm ["1. Network Emulation Layer (Linux tc/netem)"]
         A1["Traffic Control (tc qdisc)"] --> A2["Impairment Injection Engine"]
         A2 --> A3["Loss (2-15%) | Delay (50-300ms) | Jitter (10-80ms)"]
     end
-    style NetEm class:subStyle
+    style NetEm fill:#F9FAFB,stroke:#D1D5DB,stroke-width:1px
 
     subgraph ClientHarvester ["2. Edge Telemetry Harvesting Layer"]
         B1["Headless WebRTC Client (Chromium)"] --> B2["W3C RTCPeerConnection.getStats()"]
-        B2 --> B3["Raw 1 Hz Cumulative Counters\n(packetsLost, framesDropped, bytesReceived, rtt, jitter)"]
+        B2 --> B3["Raw 1 Hz Cumulative Counters<br/>(packetsLost, framesDropped, bytesReceived, rtt, jitter)"]
     end
-    style ClientHarvester class:subStyle
+    style ClientHarvester fill:#F9FAFB,stroke:#D1D5DB,stroke-width:1px
 
     subgraph FeaturePipeline ["3. Stationary Differential Transformation Engine"]
         C1["First-Order Differencing: ΔL_t, ΔD_t, ΔB_t"]
@@ -40,14 +39,14 @@ flowchart TD
         C2 --> C4
         C3 --> C4
     end
-    style FeaturePipeline class:subStyle
+    style FeaturePipeline fill:#F9FAFB,stroke:#D1D5DB,stroke-width:1px
 
     subgraph EdgeInference ["4. Sub-Millisecond Edge Classifier"]
         D1["Trained ExtraTrees Model (ONNX WASM)"]
         D2["Real-Time Inference: 0.42 ms | 380 KB RAM"]
         D1 --> D2
     end
-    style EdgeInference class:subStyle
+    style EdgeInference fill:#F9FAFB,stroke:#D1D5DB,stroke-width:1px
 
     subgraph ClosedLoop ["5. Closed-Loop Protocol Remediation Layer"]
         E1{"Root Cause Diagnosed"}
@@ -61,7 +60,7 @@ flowchart TD
         E1 -->|Jitter| E4
         E1 -->|Normal| E5
     end
-    style ClosedLoop class:subStyle
+    style ClosedLoop fill:#F9FAFB,stroke:#D1D5DB,stroke-width:1px
 
     A3 --> B1
     B3 --> C1
@@ -206,6 +205,15 @@ If you use this framework or dataset in your academic work, please cite:
   note      = {Course Code: BCSCC0552}
 }
 ```
+
+---
+
+## 👤 Author & Contact
+
+**Suneet Chugh**  
+Department of Computer Science and Engineering (Artificial Intelligence)  
+Noida Institute of Engineering and Technology (NIET), Greater Noida, India  
+Institutional Email: [`0241csai108@niet.co.in`](mailto:0241csai108@niet.co.in)
 
 ---
 
